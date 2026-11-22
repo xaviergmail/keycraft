@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1217">
+  <meta name="description" content="A MIDI-powered jazz piano training arcade for scales, chords, inversions and harmony.">
+  <title>KEYCRAFT — MIDI Harmony Arcade</title>
+  <link rel="stylesheet" href="keycraft.217ec2d6739ef7db.css">
+  <script src="keycraft.f33e2b4ac7488ae9.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Drill selection">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div><div><strong>KEYCRAFT</strong><small>HARMONY ARCADE</small></div></div>
+      <button type="button" id="just-practice" class="button button-primary button-small" aria-pressed="false">Just Practice</button>
+      <div class="rail-heading">FREE PLAY</div>
+      <p class="small-desc" id="free-suggestion"></p>
+<button type="button" id="start-curriculum" class="button button-primary button-small">Start suggested drill</button>
+      <nav id="mode-nav" class="mode-nav" aria-label="Free Play curriculum"></nav>
+      <div class="rail-footer">
+        <div class="rank-pill"><span class="rank-icon">✦</span><div><div class="rank-caption">CURRENT RANK</div><strong id="rank-label">Beginner</strong></div><span id="rank-level">LVL 01</span></div>
+        <div class="xp-track"><div id="xp-fill" class="xp-fill"></div></div>
+        <div class="rail-caption"><span id="xp-progress">0 / 500 XP to next level</span><span id="xp-total">0 XP</span></div>
+        <button id="export-progress" class="text-button">⇩ Export progress</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="crumb">THE DOJO <span>/</span> <strong id="crumb-mode">CHORD FORGE</strong></div>
+        <div class="top-actions">
+          <div id="midi-status" class="midi-status"><span class="status-dot"></span><span id="midi-status-text">MIDI not connected</span></div>
+          <button id="connect-midi" class="button button-primary button-small">⌁ Connect MIDI</button>
+        </div>
+      </header>
+
+      <div class="page-heading">
+        <div><p class="eyebrow">THEORY → INSTINCT</p><h1>Make harmony <em>second nature.</em></h1><p>Train on a real keyboard. Build speed, recognize patterns, master jazz.</p></div>
+        <div class="day-streak"><div class="flame" aria-hidden="true">✦</div><div><strong id="total-answered">0</strong><span>CHALLENGES CLEARED</span></div></div>
+      </div>
+
+      <section class="workspace">
+        <div class="play-area">
+          <section class="curriculum-panel" aria-label="Guided curriculum">
+            <div class="curriculum-top">
+              <div><h2>Just Practice · Guided curriculum</h2><p id="curriculum-next" aria-live="polite"></p></div>
+
+            </div>
+            <details>
+              <summary>View learning path</summary>
+              <p>Just Practice rotates through sections you have started. Choose your next lesson when you feel ready.</p>
+              <ol id="curriculum-phases"></ol>
+            </details>
+          </section>
+          <div class="section-head"><div class="section-label"><span class="section-mark"></span> LIVE DRILL</div><span id="mode-description" class="subtle">Construct chords from memory</span></div>
+          <div class="settings-bar">
+            <label class="setting">KEY FOCUS<select id="key-select" aria-label="Key focus"><option value="auto">Adaptive · all keys</option><option value="C" selected>C major</option><option value="G">G major</option><option value="D">D major</option><option value="A">A major</option><option value="E">E major</option><option value="B">B major</option><option value="F#">F♯ major</option><option value="Db">D♭ major</option><option value="Ab">A♭ major</option><option value="Eb">E♭ major</option><option value="Bb">B♭ major</option><option value="F">F major</option></select></label>
+            <label class="setting">DIFFICULTY<select id="difficulty-select" aria-label="Difficulty"><option value="foundation">Foundation</option><option value="intermediate">Intermediate</option><option value="jazz">Jazz / advanced</option></select></label>
+            <button type="button" id="spoken-prompts" class="button-ghost" aria-label="Spoken prompts" aria-pressed="true" hidden></button>
+            <label class="setting" id="voice-engine-setting" hidden>VOICE<select id="voice-engine"><option value="browser">Browser voice</option><option value="neural">Kokoro neural (~90 MB)</option></select></label>
+            <div class="run-toggle" aria-label="Practice style"><button id="practice-btn" class="selected" aria-pressed="true">∞ Practice</button><button id="arcade-btn" aria-pressed="false">⚡ Arcade</button></div>
+          </div>
+
+          <div id="voice-cache" class="voice-cache" hidden><progress id="voice-cache-progress" aria-label="Neural voice cache"></progress><span id="voice-cache-label"></span></div>
+          <p id="speech-status" class="speech-status" role="status"></p>
+          <section class="challenge-board" aria-live="polite" aria-label="Active challenge">
+            <div class="board-header"><div id="challenge-tag" class="challenge-tag">CHORD FORGE <span class="tag-divider">·</span> MEMORY</div><div class="round-counter"><span id="round-label">READY TO PLAY</span><span id="time-label" class="time-label">UNTIMED</span></div></div>
+            <div id="board-ready" class="board-ready">
+              <div class="ready-icon" aria-hidden="true">♬</div>
+              <h2 id="ready-title">Think in chords.<br><span>Play with confidence.</span></h2>
+              <p id="ready-copy">Build a chord from its symbol. Every round strengthens your harmonic reflexes.</p>
+              <button id="start-game" class="button button-large button-light">Start training <span>↗</span></button>
+              <div class="keyboard-hint">No MIDI controller? Use the on-screen piano below.</div>
+            </div>
+            <div id="board-active" class="board-active hidden">
+              <div class="challenge-kicker" id="challenge-kicker">PLAY THE CHORD</div>
+              <h2 class="challenge-title" id="challenge-title">Dm7</h2>
+              <div class="instruction-row"><p id="challenge-instruction" class="challenge-instruction">Play D minor seventh in any inversion.</p><aside id="lesson-hint" class="lesson-hint" hidden><strong id="lesson-hint-title"></strong><p id="lesson-hint-copy"></p><div id="lesson-hint-keys" role="img" hidden></div></aside></div>
+              <div id="sequence-pills" class="sequence-pills hidden" aria-label="Sequence steps"></div>
+              <div id="held-notes" class="held-notes"><span class="empty-held">Waiting for notes...</span></div>
+              <div id="answer-feedback" class="answer-feedback" role="status"></div>
+              <div class="challenge-actions"><button type="button" id="replay-prompt" class="button-ghost" hidden>Replay prompt</button><button id="hint-button" class="button-ghost">Show hint</button><button id="skip-button" class="button-ghost">Skip ↗</button></div>
+            </div>
+            <div id="board-summary" class="board-summary hidden">
+              <div class="summary-medal">✦</div><div class="challenge-kicker">RUN COMPLETE</div>
+              <h2 id="summary-head">Nice work.</h2><p id="summary-copy">Every repetition adds up.</p>
+              <div class="summary-numbers"><div><strong id="summary-points">0</strong><span>POINTS</span></div><div><strong id="summary-accuracy">0%</strong><span>ACCURACY</span></div><div><strong id="summary-xp">+0</strong><span>XP EARNED</span></div></div>
+              <figure class="exercise-history">
+                <figcaption>Curriculum scores <small>Last 10 exercises · Oldest to newest</small></figcaption>
+                <ul id="exercise-chart-legend" aria-label="Groups tested in this exercise"></ul>
+                <p id="exercise-chart-empty" hidden>This exercise did not test a curriculum group.</p>
+                <canvas id="exercise-chart" width="600" height="200" role="img" aria-label="Scores by exercise for the curriculum groups tested in this run"></canvas>
+                <details id="exercise-chart-details"><summary>View chart values</summary><ol id="exercise-chart-values"></ol></details>
+              </figure>
+              <section class="run-continuation" aria-label="Unscored continuation">
+                <h3 id="continuation-label"></h3>
+                <div id="continuation-formula"></div>
+                <div id="continue-keys" role="group" aria-label="Practice the displayed chord or scale"></div>
+                <button id="play-again" class="button button-large button-light">Continue</button>
+              </section>
+            </div>
+            <div class="board-bottom"><div class="round-progress" id="round-progress" aria-label="Round progress"></div><div class="board-score"><span>✦ <b id="live-score">0</b> PTS</span><span>⚡ <b id="live-combo">0</b> COMBO</span><span id="hearts" aria-label="Remaining hearts">♥ ♥ ♥</span></div></div>
+          </section>
+
+          <section class="keyboard-panel">
+            <div class="keyboard-heading"><div class="section-label"><span class="section-mark purple"></span> MIDI MONITOR <span id="input-label" class="tiny-secondary">· ON-SCREEN / COMPUTER KEYBOARD</span></div><div class="key-legend"><span class="key-dot active-dot"></span> HELD</div></div>
+            <div class="keyboard-scroll"><div id="keyboard" class="keyboard" role="group" aria-label="Interactive piano keyboard; click keys to toggle notes"></div></div>
+            <div class="keyboard-footer"><span>Click a key to latch or unlatch it <span class="midsep">·</span> Computer keys: A–K, W E T Y U</span><span id="last-note">LAST NOTE: —</span></div>
+            <div id="midi-help" class="midi-help">Web MIDI works in supported browsers such as Chrome/Edge on HTTPS or localhost. Play notes on your own instrument.</div>
+          </section>
+
+          <section class="theory-panel"><div class="theory-heading"><span>⌘</span> THE THEORY LENS</div><div id="theory-content"><h3>Know the notes. Feel the function.</h3><p>Choose a drill to see the harmonic idea behind every challenge. Theory should explain the sound, not slow down your playing.</p></div></section>
+        </div>
+
+        <aside class="insights">
+          <section class="insight-card quest-card"><div class="card-heading"><div><span class="eyebrow">DAILY MISSIONS</span><h3>Today's quests</h3></div><span class="little-sun">☼</span></div><div id="quest-list" class="quest-list"></div><button id="claim-reward" class="claim-button" disabled>Complete all quests <span>+200 XP</span></button></section>
+          <details class="insight-card"><summary>Accuracy by key</summary><p class="small-desc">First-try accuracy across your exercises.</p><div id="key-mastery" class="key-mastery"></div></details>
+          <section class="insight-card"><div class="card-heading"><div><span class="eyebrow">MILESTONES</span><h3>Achievements</h3></div><span class="icon-key">✧</span></div><div id="achievement-list" class="achievement-list"></div></section>
+          <section class="tip-card"><div class="tip-icon">↗</div><strong>TRAIN SMARTER</strong><p>Say the chord tones out loud before playing them. Then try the same idea in another key. Recall beats repetition.</p></section>
+        </aside>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+<dialog id="concept-intro" aria-labelledby="concept-name" aria-describedby="concept-copy">
+  <div class="rainbow-arc" aria-hidden="true"></div>
+  <div class="concept-card"><span id="concept-kind"></span><h2 id="concept-name"></h2><p id="concept-copy"></p><figure class="concept-example"><figcaption id="example-label"></figcaption><div id="example-keys"></div></figure><button id="concept-continue" autofocus class="button button-primary">Continue</button></div>
+</dialog>
+<dialog id="advance-dialog" aria-labelledby="advance-title"><div class="confetti" aria-hidden="true"></div><h2 id="advance-title">Ready for the next lesson?</h2><button id="advance-next" class="button button-primary"></button><button id="advance-keep" class="button">Continue practicing</button></dialog>
+</body>
+</html>
