@@ -14,6 +14,7 @@ KeyCraft is a browser-only adaptive piano theory trainer for notes, intervals, s
 
 - `dist/` is both the editable source tree and the publish root. Edit unhashed JS/CSS and HTML; never hand-edit tracked `keycraft.<hash>.js`, `keycraft.<hash>.css`, or `voice-worker.<hash>.js`.
 - `scripts/` holds build tooling. `docs/initial-chat.md` is a historical handoff, not a spec; check its claims against current code.
+- `openspec/` holds accepted specs in `specs/` and proposals in `changes/`. OMP discovers the workflow skills in `.agents/skills/`; use `/skill:openspec-explore` to investigate or `/skill:openspec-propose` to draft a change.
 
 ## Development Commands
 
