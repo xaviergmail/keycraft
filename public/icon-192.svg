@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title">
+  <title>KeyCraft</title>
+  <rect width="192" height="192" rx="36" fill="#152522"/>
+  <path d="M35 45h122v102H35z" fill="#f5f1e8"/>
+  <path d="M35 45h122v16H35z" fill="#8bd3c7"/>
+  <path d="M53 61v86M71 61v86M89 61v86M107 61v86M125 61v86M143 61v86" stroke="#152522" stroke-width="3"/>
+  <path d="M47 61h14v44H47zM65 61h14v44H65zM101 61h14v44h-14zM119 61h14v44h-14zM137 61h14v44h-14z" fill="#152522"/>
+  <path d="M43 121h106" stroke="#e1835e" stroke-width="7" stroke-linecap="round"/>
+</svg>

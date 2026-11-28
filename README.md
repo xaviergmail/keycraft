@@ -4,19 +4,26 @@ Adaptive piano theory practice with Web MIDI, browser-local progress, and option
 
 ## Run locally
 
-```sh
-python3 -m http.server 8000 --directory dist
-```
-
-Open http://localhost:8000. Approve MIDI access to use your instrument, or use the on-screen piano.
-
-## Rebuild after editing source
+Use Node.js 24 or later:
 
 ```sh
-python3 scripts/build-assets.py
+npm ci
+npm run dev
 ```
 
-This combines lessons.js, curriculum.js, neural-voice.js and app.js into a content-hashed script and updates dist/index.html. Serve dist/ as a static site.
+Open the local URL printed by Vite. KeyCraft requests Web MIDI access automatically where supported. You can also play with the on-screen piano or the computer keyboard; the octave controls shift the computer keys' range.
+
+## Verify and build
+
+```sh
+npm run check
+npm test
+npm run build
+node tools/verify-site.mjs dist
+npm run preview
+```
+
+`dist/` is generated static output. Use the production preview to verify installation, offline practice, and updates; the development server does not register a service worker.
 
 ## Publish to GitHub Pages
 
@@ -26,10 +33,12 @@ This combines lessons.js, curriculum.js, neural-voice.js and app.js into a conte
 
 GitHub Pages uses separate browser storage. Progress and cached voice clips from localhost or ChatGPT Sites won't appear there.
 
+To publish to ChatGPT Sites, build and verify `dist/` locally, then publish that directory separately. Neither host needs a backend.
+
 ## Practice
 
-**Just Practice** and **Start suggested drill** give you time with a focus lesson and mix in earlier material when it's due. After a few unaided answers in starter keys you can try the next lesson or keep practicing. Use **Show hint** whenever you need help; assisted answers don't count toward advancing. All-key fluency stays a separate practice goal.
+**Just Practice** and **Start suggested drill** mix focus practice with earlier material that is due for review. A new lesson is offered after every admitted lesson meets the mastery gate, including four consecutive unaided clears in each of its 17 spelled keys. Hints and worked examples help you learn but don't count toward independent recall.
 
-Use the **Free Play** sidebar to choose a root, lesson, or full branch without moving your guided focus. Scores, response timing, progress history, and voice clips stay in the browser. Use **Export progress** for a JSON backup.
+**Free Play** lets you choose a key, lesson, or full section without advancing the guided path. Lesson scores keep enharmonic spellings such as G♯ and A♭ separate. **Export progress** downloads a JSON backup; there is no in-app import. Saved progress migrates automatically on the same origin.
 
-Voice generation runs locally in a Web Worker after model download. Instrument audio comes from your piano.
+Kokoro prepares spoken prompts in the background after a model download. If a clip isn't ready, KeyCraft tries browser speech without waiting for synthesis. Once offline practice is ready, you can reload and train without downloading the model. Instrument audio comes from your piano.

@@ -1,0 +1,24 @@
+{
+  "name": "KeyCraft · Piano theory practice",
+  "short_name": "KeyCraft",
+  "description": "Practice piano theory with a MIDI instrument, on-screen piano, or computer keyboard.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101a18",
+  "theme_color": "#152522",
+  "icons": [
+    {
+      "src": "./icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

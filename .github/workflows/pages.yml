@@ -21,72 +21,28 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          python-version: '3.12'
+          node-version: '24'
+          cache: npm
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Build site
         shell: bash
         run: |
-          python3 - <<'PY'
-          import re
-          from pathlib import Path
+          rm -rf dist .build
+          npm ci
+          npm run build
 
-          generated = re.compile(r'(?:keycraft\.[0-9a-f]{16}\.(?:js|css)|voice-worker\.[0-9a-f]{16}\.js)')
-          for asset in Path('dist').iterdir():
-              if generated.fullmatch(asset.name):
-                  asset.unlink()
-          PY
-          python3 scripts/build-assets.py
+      - name: Verify generated site
+        run: node tools/verify-site.mjs dist
 
       - name: Stage Pages artifact
         shell: bash
         run: |
-          python3 - <<'PY'
-          import os
-          import re
-          import shutil
-          from html.parser import HTMLParser
-          from pathlib import Path
-
-          class PageAssets(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.stylesheets = []
-                  self.scripts = []
-
-              def handle_starttag(self, tag, attrs):
-                  attrs = dict(attrs)
-                  if tag == 'link' and 'stylesheet' in (attrs.get('rel') or '').split():
-                      self.stylesheets.append(attrs.get('href'))
-                  elif tag == 'script' and 'src' in attrs:
-                      self.scripts.append(attrs['src'] if 'defer' in attrs else None)
-
-          dist = Path('dist')
-
-          def require_asset(kind, refs, pattern):
-              if len(refs) != 1 or not re.fullmatch(pattern, refs[0] or ''):
-                  raise SystemExit(f'Expected one relative hashed {kind} reference, found {refs!r}')
-              asset = dist / refs[0]
-              if not asset.is_file():
-                  raise SystemExit(f'Missing {kind}: {asset}')
-              return asset
-
-          index = dist / 'index.html'
-          assets = PageAssets()
-          assets.feed(index.read_text(encoding='utf-8'))
-          assets.close()
-          style = require_asset('stylesheet', assets.stylesheets, r'keycraft\.[0-9a-f]{16}\.css')
-          bundle = require_asset('deferred script', assets.scripts, r'keycraft\.[0-9a-f]{16}\.js')
-          worker_refs = re.findall(r"\bnew\s+Worker\s*\(\s*'([^']+)'", bundle.read_text(encoding='utf-8'))
-          worker = require_asset('voice worker', worker_refs, r'voice-worker\.[0-9a-f]{16}\.js')
-
-          site = Path(os.environ['RUNNER_TEMP']) / 'keycraft-pages'
-          site.mkdir()
-          for asset in (index, style, bundle, worker):
-              shutil.copyfile(asset, site / asset.name)
-          PY
+          rm -rf "$RUNNER_TEMP/keycraft-pages"
+          mkdir -p "$RUNNER_TEMP/keycraft-pages"
+          cp -a dist/. "$RUNNER_TEMP/keycraft-pages/"
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

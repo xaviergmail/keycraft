@@ -6,14 +6,14 @@ KeyCraft is a browser-only adaptive piano theory trainer for notes, intervals, s
 
 ## Architecture & Data Flow
 
-- `dist/lessons.js` defines `CURRICULUM` with lesson factories. Give new lessons a stable ID and reuse an existing `MODES` entry from `dist/app.js` so they share its generator and evaluators (e.g. `major-triad` uses `chords`). `dist/curriculum.js` schedules new material and review using skill, item, and spelled-root histories in `progress.curriculum.courseV2`.
-- `dist/app.js` starts at `initialize()`. `planChallenge()` and `generateChallenge()` create prompts; `onNoteOn()` / `onNoteOff()` funnel all input into shared evaluators. `recordRound()` updates scores and curriculum progress; `persist()` saves progress and `render*()` updates the DOM. The shared `state` separates the active `session` from persisted `progress`.
-- `dist/neural-voice.js` serializes synthesis requests and caches versioned audio clips in IndexedDB. `dist/neural-voice-worker.js` loads Kokoro and synthesizes clips off the main thread. Browser speech is a separate engine and can handle neural failures when available.
+- `src/catalog.ts` owns stable lesson IDs and musical recipes. `src/prompts.ts` generates stable, spelled prompts for practice, worked examples, and continuation. Keep pitch classes for judging separate from spelled keys for scoring.
+- `src/game.ts` owns the active exercise and clocks; `src/evaluate.ts` judges scope-local notes from `src/input.ts`. Keep teaching and continuation unscored and release old latched input without erasing other owners. `src/schedule.ts` gates admission on full-path mastery and chooses focus and review.
+- `src/record.ts` and `src/results.ts` commit and summarize outcomes; `src/storage.ts` migrates and persists `keycraft-midi-arcade-v1`. `src/voice.ts` separates playback from optional Kokoro synthesis in `src/voice-worker.ts`.
 
 ## Key Directories
 
-- `dist/` is both the editable source tree and the publish root. Edit unhashed JS/CSS and HTML; never hand-edit tracked `keycraft.<hash>.js`, `keycraft.<hash>.css`, or `voice-worker.<hash>.js`.
-- `scripts/` holds build tooling. `docs/initial-chat.md` is a historical handoff, not a spec; check its claims against current code.
+- `src/` is the editable Svelte/TypeScript app; `tests/` contains focused Node tests. `public/` contains install assets; `tools/` builds and verifies the static release.
+- `dist/` is generated output and the publish root. Do not put editable source or checked-in assets there. `docs/initial-chat.md` is a historical handoff, not a spec.
 - `openspec/` holds accepted specs in `specs/` and proposals in `changes/`. OMP discovers the workflow skills in `.agents/skills/`; use `/skill:openspec-explore` to investigate or `/skill:openspec-propose` to draft a change.
 
 ## Development Commands
@@ -21,34 +21,37 @@ KeyCraft is a browser-only adaptive piano theory trainer for notes, intervals, s
 Run from the repository root:
 
 ```sh
-python3 scripts/build-assets.py                # Rebuild after editing JS, worker, or CSS sources
-python3 -m http.server 8000 --directory dist   # Open http://localhost:8000
-node --check dist/app.js                      # Optional syntax-only check; use the changed JS path
+npm ci
+npm run dev
+npm run check
+node --test tests/game.test.ts                 # Example of a focused check
+npm run build && node tools/verify-site.mjs dist
+npm run preview                               # Serve the production app and worker
 ```
 
-Keep updated HTML references and the corresponding generated files together. The builder does not remove superseded hashes.
+The Vite build uses relative asset URLs for both `/` and `/keycraft/`. Do not change the default base or rewrite generated references by hand.
 
 `.github/workflows/pages.yml` rebuilds the pushed commit on `main` and publishes only the fresh site files to GitHub Pages. No local rebuild is needed for that deployment. ChatGPT Sites still publishes `dist/` separately.
 
 ## Code Conventions & Common Patterns
 
-- Match existing JS: two spaces, single quotes, semicolons, `camelCase` functions, `UPPER_SNAKE_CASE` constants, and kebab-case DOM IDs/classes. Use `$` / `$$` for DOM lookups and preserve selector, focus, and ARIA behavior when changing markup.
+- Match existing TypeScript: two spaces, single quotes, semicolons, `camelCase` functions, `UPPER_SNAKE_CASE` constants, kebab-case DOM IDs/classes, and `.ts` extensions on TypeScript imports used by Node tests. Preserve focus and ARIA behavior.
 - In CSS, reuse `:root` tokens and match the formatting of neighboring rules; leave unrelated compact blocks alone.
 - Use shared state only where needed; pass explicit values and callbacks to helpers rather than introducing a DI layer. Keep session and prompt identity checks around delayed work so stale timers or voice jobs cannot affect the next round. Use `performance.now()` for elapsed response time and `Date.now()` for persisted timestamps.
-- Preserve saved progress: keep `keycraft-midi-arcade-v1` and stable lesson IDs. Add new persisted top-level fields to the `loadProgress()` whitelist. Unavailable storage must not stop a run. Keep spelled keys for curriculum history distinct from pitch classes used to evaluate notes.
+- Keep the existing storage key, lesson IDs, raw legacy records, and separate `curriculum.courseV3` mastery evidence. A failed migration must not overwrite the original save. Unavailable storage must not stop a run.
 
 ## Important Files
 
-- `dist/index.html` is the entry point and DOM contract; `dist/styles.css` holds theme tokens and layout. Preserve the single deferred bundle tag and stylesheet link that the builder rewrites.
-- `scripts/build-assets.py` concatenates classic scripts in order: lessons, curriculum, neural voice, app. They share one scope; do not add module imports/exports to them. Preserve the literal `'neural-voice-worker.js'` URL in the voice wrapper: the builder substitutes the hashed worker filename.
+- `index.html`, `src/main.ts`, and `src/App.svelte` are the app entry and Svelte surface; `src/style.css` contains shared theme and layout rules.
+- `vite.config.ts` and `tools/pwa.mjs` produce the release. `public/manifest.webmanifest` and the generated worker control only their deployment path. Keep previous assets usable while an older client is still playing.
 - `README.md` covers local use and Pages setup. `.openai/hosting.json` keeps `dist/` as the ChatGPT Sites publish root.
 
 ## Runtime/Tooling Preferences
 
-Use Python 3's standard library for build and local serving. Node is optional for local checks only; no Bun, package manager, or backend is needed. Web MIDI needs a supported browser (e.g. Chrome or Edge), HTTPS or localhost, and permission. Neural voice fetches pinned `kokoro-js` and model assets on first use and runs inference in browser WASM.
+Use Node.js 24 or later and npm with the checked-in lockfile; no backend. Web MIDI needs a supported browser, HTTPS or localhost, and permission. Kokoro fetches pinned optional runtime/model assets and synthesizes in a module worker, never on the main thread.
 
 ## Testing & QA
 
-There is no automated app test suite, lint target, or coverage requirement. Pages CI checks for matching assets before upload. Use the syntax check above and, for isolated logic, a focused Node `vm` script with minimal DOM stubs. Neither replaces a browser check.
+Use `npm run check` and the relevant `node --test tests/*.test.ts` files. Use the synthetic acceptance and legacy-save fixtures in `openspec/changes/rebuild-keycraft-pwa/fixtures/`; the old browser bundle is not a test dependency.
 
-After rebuilding, smoke-test the affected behavior: start **Just Practice** or a sidebar drill, answer using the on-screen keyboard, and check the relevant hint, skip, or completion path. For persistence changes, reload and check progress and **Export progress**. For MIDI or voice changes, verify with a real instrument or audible playback.
+Verify actual input, dialogs, summaries, and export in a browser. Serve a production build below `/keycraft/` to check the release; verify offline reload and safe update activation on a disposable origin. For voice/MIDI, distinguish simulated failures and device input from real audio and hardware checks.
