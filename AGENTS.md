@@ -28,6 +28,8 @@ node --check dist/app.js                      # Optional syntax-only check; use 
 
 Keep updated HTML references and the corresponding generated files together. The builder does not remove superseded hashes.
 
+`.github/workflows/pages.yml` rebuilds the pushed commit on `main` and publishes only the fresh site files to GitHub Pages. No local rebuild is needed for that deployment. ChatGPT Sites still publishes `dist/` separately.
+
 ## Code Conventions & Common Patterns
 
 - Match existing JS: two spaces, single quotes, semicolons, `camelCase` functions, `UPPER_SNAKE_CASE` constants, and kebab-case DOM IDs/classes. Use `$` / `$$` for DOM lookups and preserve selector, focus, and ARIA behavior when changing markup.
@@ -39,7 +41,7 @@ Keep updated HTML references and the corresponding generated files together. The
 
 - `dist/index.html` is the entry point and DOM contract; `dist/styles.css` holds theme tokens and layout. Preserve the single deferred bundle tag and stylesheet link that the builder rewrites.
 - `scripts/build-assets.py` concatenates classic scripts in order: lessons, curriculum, neural voice, app. They share one scope; do not add module imports/exports to them. Preserve the literal `'neural-voice-worker.js'` URL in the voice wrapper: the builder substitutes the hashed worker filename.
-- `README.md` is the quickstart. `.openai/hosting.json` points ChatGPT Sites at `dist/`; publishing is separate from pushing to GitHub.
+- `README.md` covers local use and Pages setup. `.openai/hosting.json` keeps `dist/` as the ChatGPT Sites publish root.
 
 ## Runtime/Tooling Preferences
 
@@ -47,6 +49,6 @@ Use Python 3's standard library for build and local serving. Node is optional fo
 
 ## Testing & QA
 
-No test framework, lint command, CI checks, or coverage target is configured. Use the syntax check above and, for isolated logic, a focused Node `vm` script with minimal DOM stubs. Neither replaces a browser check.
+There is no automated app test suite, lint target, or coverage requirement. Pages CI checks for matching assets before upload. Use the syntax check above and, for isolated logic, a focused Node `vm` script with minimal DOM stubs. Neither replaces a browser check.
 
 After rebuilding, smoke-test the affected behavior: start **Just Practice** or a sidebar drill, answer using the on-screen keyboard, and check the relevant hint, skip, or completion path. For persistence changes, reload and check progress and **Export progress**. For MIDI or voice changes, verify with a real instrument or audible playback.

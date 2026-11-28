@@ -1,0 +1,107 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Build site
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          generated = re.compile(r'(?:keycraft\.[0-9a-f]{16}\.(?:js|css)|voice-worker\.[0-9a-f]{16}\.js)')
+          for asset in Path('dist').iterdir():
+              if generated.fullmatch(asset.name):
+                  asset.unlink()
+          PY
+          python3 scripts/build-assets.py
+
+      - name: Stage Pages artifact
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import shutil
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class PageAssets(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.stylesheets = []
+                  self.scripts = []
+
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == 'link' and 'stylesheet' in (attrs.get('rel') or '').split():
+                      self.stylesheets.append(attrs.get('href'))
+                  elif tag == 'script' and 'src' in attrs:
+                      self.scripts.append(attrs['src'] if 'defer' in attrs else None)
+
+          dist = Path('dist')
+
+          def require_asset(kind, refs, pattern):
+              if len(refs) != 1 or not re.fullmatch(pattern, refs[0] or ''):
+                  raise SystemExit(f'Expected one relative hashed {kind} reference, found {refs!r}')
+              asset = dist / refs[0]
+              if not asset.is_file():
+                  raise SystemExit(f'Missing {kind}: {asset}')
+              return asset
+
+          index = dist / 'index.html'
+          assets = PageAssets()
+          assets.feed(index.read_text(encoding='utf-8'))
+          assets.close()
+          style = require_asset('stylesheet', assets.stylesheets, r'keycraft\.[0-9a-f]{16}\.css')
+          bundle = require_asset('deferred script', assets.scripts, r'keycraft\.[0-9a-f]{16}\.js')
+          worker_refs = re.findall(r"\bnew\s+Worker\s*\(\s*'([^']+)'", bundle.read_text(encoding='utf-8'))
+          worker = require_asset('voice worker', worker_refs, r'voice-worker\.[0-9a-f]{16}\.js')
+
+          site = Path(os.environ['RUNNER_TEMP']) / 'keycraft-pages'
+          site.mkdir()
+          for asset in (index, style, bundle, worker):
+              shutil.copyfile(asset, site / asset.name)
+          PY
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/keycraft-pages
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
