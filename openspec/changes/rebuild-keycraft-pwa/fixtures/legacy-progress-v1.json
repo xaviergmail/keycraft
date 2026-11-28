@@ -1,0 +1,23 @@
+{
+  "xp": 1200,
+  "correct": 40,
+  "attempts": 55,
+  "bestStreak": 9,
+  "modeStats": {"scales": {"attempts": 20, "correct": 15}},
+  "keyStats": {"C": {"attempts": 10, "correct": 8}},
+  "achievements": ["first", "streak", "scales"],
+  "bestScores": {"chords:practice": 320},
+  "responseTimes": {"notes:target:0": [520, 610]},
+  "exerciseHistory": [
+    {"number": 1, "label": "Scales", "accuracy": 80, "curriculumScores": {"major": 42}, "testedSkills": ["major"]}
+  ],
+  "curriculum": {
+    "notes": {
+      "C": {"lastPracticed": 1736942200000, "mastered": true, "recent": [true, true, true, true, true, false]}
+    },
+    "seconds": {
+      "C": {"lastPracticed": 1736942300000, "mastered": false, "intervalHistory": {"1": [true, false, true], "2": [false, true]}}
+    }
+  },
+  "daily": {"date": "2025-01-14", "rounds": 9, "notes": 30, "jazz": 2, "claimed": true}
+}

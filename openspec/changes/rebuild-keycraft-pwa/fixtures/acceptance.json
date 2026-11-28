@@ -1,0 +1,123 @@
+{
+  "fixtureVersion": 1,
+  "noteConvention": "MIDI 60 is C4. A row of numbers is a sequence of attacks unless named heldNotes or requiredPitchClasses. Keys use catalog ASCII spellings.",
+  "music": [
+    {
+      "id": "d-natural-minor",
+      "lessonId": "natural-minor",
+      "key": "D",
+      "expectedSpellings": ["D", "E", "F", "G", "A", "Bb", "C", "D"],
+      "attacks": [62, 64, 65, 67, 69, 70, 72, 74],
+      "expected": "clear once in natural-minor/D"
+    },
+    {
+      "id": "g-sharp-major",
+      "lessonId": "major",
+      "key": "G#",
+      "expectedSpellings": ["G#", "A#", "B#", "C#", "D#", "E#", "F##", "G#"],
+      "attacks": [68, 70, 72, 73, 75, 77, 79, 80],
+      "expected": "clear major/G# without modifying major/Ab"
+    },
+    {
+      "id": "wrong-octave-resets-scale",
+      "lessonId": "major",
+      "key": "C",
+      "attacks": [60, 62, 76],
+      "expectedAfter": {"cleared": false, "mistakes": 1, "nextTonicPc": 0}
+    },
+    {
+      "id": "upper-note-first-interval",
+      "lessonId": "M3",
+      "key": "C",
+      "heldAttacks": [{"ms": 0, "note": 64}, {"ms": 75, "note": 60}],
+      "expected": "clear at root attack; a 101 ms root attack is too late"
+    },
+    {
+      "id": "c-first-inversion",
+      "lessonId": "inversion-1",
+      "key": "C",
+      "variant": "major",
+      "acceptedHeldNotes": [52, 55, 60],
+      "wrongBassHeldNotes": [60, 64, 67],
+      "expectedBassPc": 4
+    },
+    {
+      "id": "retain-d-minor-seven-to-g-seven-guide-tone",
+      "lessonId": "guides",
+      "key": "C",
+      "stages": [
+        {"chord": "Dm7", "attack": [60, 65], "release": []},
+        {"chord": "G7", "release": [60], "attack": [59]},
+        {"chord": "Cmaj7", "release": [65], "attack": [64]}
+      ],
+      "expected": "three stage passes, one clear, no restrike of F4 or B3"
+    },
+    {
+      "id": "minor-cadence-triad-tonic",
+      "lessonId": "minor-cadence",
+      "key": "C",
+      "stages": [
+        {"chord": "Dm7b5", "requiredPitchClasses": [2, 5, 8, 0]},
+        {"chord": "G7", "requiredPitchClasses": [7, 11, 2, 5]},
+        {"chord": "Cm", "requiredPitchClasses": [0, 3, 7]}
+      ],
+      "incorrectTonicPitchClasses": [0, 3, 7, 10]
+    },
+    {
+      "id": "c-center-altered-dominant",
+      "lessonId": "altered",
+      "key": "C",
+      "acceptHeldNotes": [59, 65, 68, 75],
+      "rejectedExtraRoot": 55,
+      "requiredPitchClasses": [11, 5, 8, 3]
+    }
+  ],
+  "mastery": {
+    "case": "Check the proposed admission after continuing a completed scheduled exercise.",
+    "admittedThrough": "natural-minor",
+    "defaultsForEveryAdmittedLesson": {
+      "visibleScore": 90,
+      "last20CleanCount": 19,
+      "unaidedStreakInEverySpelledKey": 4
+    },
+    "exception": {"lessonId": "natural-minor", "key": "G#", "unaidedStreak": 3},
+    "expectBeforeRepair": "no offer",
+    "repair": {"lessonId": "natural-minor", "key": "G#", "classification": "unaided-success"},
+    "expectAfterRepair": "offer harmonic-minor if not snoozed; do not admit until accepted",
+    "nonRepair": {"lessonId": "natural-minor", "key": "Ab", "classification": "unaided-success"}
+  },
+  "dueReview": {
+    "now": 1780000000000,
+    "reviewCandidates": [
+      {"lessonId": "major", "key": "D", "lastAnswered": 1779996400000, "lastAsked": 1779996400000, "halfLife": 2700000},
+      {"lessonId": "major", "key": "C", "lastAnswered": 1779999940000, "lastAsked": 1779999940000, "halfLife": 2700000}
+    ],
+    "expected": {"lessonId": "major", "key": "D"}
+  },
+  "voice": {
+    "keyTuple": ["kokoro-js@1.2.1/kokoro-82m-v1.0-onnx/q8", "af_heart", 1, "Eh flat minor third."],
+    "browserText": "A, flat minor third.",
+    "cacheDeadlineMs": 100,
+    "missScenario": "No matching clip by deadline; browser speaks once; late generation becomes eligible only on a later presentation or replay."
+  },
+  "legacy": {
+    "fixedClock": "2025-01-15T12:00:00Z",
+    "timeZone": "UTC",
+    "savedValueKey": "keycraft-midi-arcade-v1",
+    "v1": {
+      "file": "legacy-progress-v1.json",
+      "expectedKeyOutcomes": {"m2": {"C": [true, false, true]}, "M2": {"C": [false, true]}},
+      "expectedFocus": {"lessonId": "notes"},
+      "startsWithFullMastery": false
+    },
+    "v2": {
+      "file": "legacy-progress-v2.json",
+      "expectedFirstFocus": {"lessonId": "major", "key": "D"},
+      "preserveXp": 1234,
+      "preserveNaturalMinorScores": {"C": 41, "D": 23, "G#": 17, "Ab": 52},
+      "excludedFromGuidedPath": ["natural-minor", "tritone-sub"],
+      "expectedSnoozedUntil": 1736942700000,
+      "startsWithFullMastery": false
+    }
+  }
+}

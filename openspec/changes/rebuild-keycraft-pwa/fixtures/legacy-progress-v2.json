@@ -1,0 +1,54 @@
+{
+  "xp": 1234,
+  "correct": 52,
+  "attempts": 57,
+  "bestStreak": 8,
+  "modeStats": {"scales": {"attempts": 12, "correct": 8}},
+  "keyStats": {"C": {"attempts": 16, "correct": 14}, "D": {"attempts": 4, "correct": 3}},
+  "achievements": ["first", "streak"],
+  "bestScores": {"curriculum:major": 512, "chords:practice": 320},
+  "responseTimes": {"notes:target:0": [520, 610]},
+  "exerciseHistory": [
+    {"number": 8, "label": "Major scale", "accuracy": 80, "curriculumScores": {"major": 66, "notes": 83}, "testedSkills": ["major", "notes"]},
+    {"number": 9, "label": "Natural minor scale", "accuracy": 70, "curriculumScores": {"major": 66, "natural-minor": 55}, "testedSkills": ["natural-minor"]}
+  ],
+  "curriculum": {
+    "courseV2": {
+      "pacing": {"skillId": "major", "key": "D", "outcomes": ["D", "D", null, "D"]},
+      "offerAfter": 1736942700000,
+      "concepts": {
+        "notes": {"recent": [true, true, false], "timings": [520, 610], "halfLife": 2700000, "lastAsked": 1736939300000, "lastAnswered": 1736939300000, "points": 83, "learned": true, "roots": {"F#": [true, false], "Gb": [true, true]}},
+        "m2": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939400000, "lastAnswered": 1736939400000, "points": 90},
+        "M2": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939500000, "lastAnswered": 1736939500000, "points": 90},
+        "m3": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939600000, "lastAnswered": 1736939600000, "points": 90},
+        "M3": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939700000, "lastAnswered": 1736939700000, "points": 90},
+        "P4": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939800000, "lastAnswered": 1736939800000, "points": 90},
+        "P5": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736939900000, "lastAnswered": 1736939900000, "points": 90},
+        "major-triad": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736940000000, "lastAnswered": 1736940000000, "points": 87},
+        "minor-triad": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736940100000, "lastAnswered": 1736940100000, "points": 89},
+        "major": {
+          "recent": [true, false, true, true], "timings": [1100, 900, 800], "halfLife": 3600000, "lastAsked": 1736941250000, "lastAnswered": 1736941260000, "points": 66, "solidified": 110, "baseline": 900, "latencySlope": 1.25,
+          "rootTraces": {
+            "C": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736940200000, "lastAnswered": 1736940200000, "points": 57},
+            "D": {"recent": [true, true, false, true], "timings": [1100, 900, 800], "halfLife": 3600000, "lastAsked": 1736941250000, "lastAnswered": 1736941260000, "explainedAt": 1736940990000, "points": 71}
+          }
+        },
+        "natural-minor": {
+          "recent": [true, false, false, true], "timings": [], "halfLife": 2700000, "lastAsked": 1736941300000, "lastAnswered": 1736941300000, "points": 55,
+          "rootTraces": {
+            "C": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736941261000, "lastAnswered": 1736941261000, "points": 41},
+            "D": {"recent": [false], "timings": [], "halfLife": 2700000, "lastAsked": 1736941262000, "lastAnswered": 1736941262000, "points": 23},
+            "G#": {"recent": [false], "timings": [], "halfLife": 2700000, "lastAsked": 1736941263000, "lastAnswered": 1736941263000, "points": 17},
+            "Ab": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736941300000, "lastAnswered": 1736941300000, "points": 52}
+          }
+        },
+        "tritone-sub": {"recent": [true], "timings": [], "halfLife": 2700000, "lastAsked": 1736941500000, "lastAnswered": 1736941500000, "points": 21}
+      },
+      "items": {
+        "[\"major\",2,null,null,null,[0,2,4,5,7,9,11,12]]": {"recent": [true], "timings": [900], "halfLife": 2700000, "lastAsked": 1736941250000, "lastAnswered": 1736941260000},
+        "[\"natural-minor\",8,null,null,null,[0,2,3,5,7,8,10,12],\"G#\"]": {"recent": [false], "timings": [], "halfLife": 2700000, "lastAsked": 1736941263000, "lastAnswered": 1736941263000}
+      }
+    }
+  },
+  "daily": {"date": "2025-01-15", "rounds": 6, "notes": 31, "jazz": 2, "claimed": true}
+}
