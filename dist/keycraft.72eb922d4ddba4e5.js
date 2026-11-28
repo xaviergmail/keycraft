@@ -5,8 +5,8 @@ const intervalLesson = (id, label, distance, hint) =>
   lesson(id, label, 'intervals', hint, { intervals: [distance] });
 const chordLesson = (id, label, chordType, hint) =>
   lesson(id, label, 'chords', hint, { chordType });
-const scaleLesson = (id, label, scale, hint) =>
-  lesson(id, label, 'scales', hint, { scales: [scale], level: 'jazz' });
+const scaleLesson = (id, label, scale, starterKey, hint) =>
+  lesson(id, label, 'scales', hint, { scales: [scale], starterKey, level: 'jazz' });
 
 const CURRICULUM = [
   { title: 'Find your way around the keyboard', skills: [
@@ -25,10 +25,10 @@ const CURRICULUM = [
     chordLesson('minor-triad', 'Minor triad', 'minor', 'Keep the root and fifth of a major triad. Lower its middle note by one half step. The gaps are now three half steps, then four.')
   ] },
   { title: 'Scales', skills: [
-    scaleLesson('major', 'Major scale', 'major', 'Start on the root. Move whole, whole, half, whole, whole, whole, half. A whole step skips one key. A half step lands on the adjacent key.'),
-    scaleLesson('natural-minor', 'Natural minor scale', 'minor', 'From the root move whole, half, whole, whole, half, whole, whole. Compare the third, sixth, and seventh with the major scale from the same root. Each is a half step lower.'),
-    scaleLesson('harmonic-minor', 'Harmonic minor scale', 'harmonic', 'Start with natural minor and raise only the seventh degree by a half step. Listen for the three half steps from the sixth to the seventh, then the small step home.'),
-    scaleLesson('melodic-minor', 'Ascending melodic minor', 'melodic', 'Raise the sixth and seventh degrees of natural minor by a half step. Another route is to play a major scale with a lowered third. Jazz melodic minor keeps this shape in either direction.')
+    scaleLesson('major', 'Major scale', 'major', 'C', 'Start on the root. Move whole, whole, half, whole, whole, whole, half. A whole step skips one key. A half step lands on the adjacent key.'),
+    scaleLesson('natural-minor', 'Natural minor scale', 'minor', 'A', 'From the root move whole, half, whole, whole, half, whole, whole. Compare the third, sixth, and seventh with the major scale from the same root. Each is a half step lower.'),
+    scaleLesson('harmonic-minor', 'Harmonic minor scale', 'harmonic', 'A', 'Start with natural minor and raise only the seventh degree by a half step. Listen for the three half steps from the sixth to the seventh, then the small step home.'),
+    scaleLesson('melodic-minor', 'Ascending melodic minor', 'melodic', 'A', 'Raise the sixth and seventh degrees of natural minor by a half step. Another route is to play a major scale with a lowered third. Jazz melodic minor keeps this shape in either direction.')
   ] },
   { title: 'Suspended chords and inversions', skills: [
     chordLesson('diminished', 'Diminished triad', 'diminished', 'Stack two minor thirds. From a minor triad, keep the root and third in place and lower the fifth by a half step.'),
@@ -54,8 +54,8 @@ const CURRICULUM = [
     lesson('guides', 'Lead two voices through a cadence', 'guides', 'Play only each chord’s third and seventh. At each change, listen for a common tone. Keep it still and move the other voice the shortest distance.')
   ] },
   { title: 'Phrase over changing harmony', skills: [
-    scaleLesson('dorian', 'Dorian over a minor seventh', 'dorian', 'Take natural minor and raise its sixth degree a half step. Listen for that bright sixth against the minor third. Dorian fits the two chord in a major two–five–one.'),
-    scaleLesson('mixolydian', 'Mixolydian over a dominant seventh', 'mixolydian', 'Play a major scale with a lowered seventh. Listen for the third and flat seventh. They are also the guide tones of the dominant chord.'),
+    scaleLesson('dorian', 'Dorian over a minor seventh', 'dorian', 'D', 'Take natural minor and raise its sixth degree a half step. Listen for that bright sixth against the minor third. Dorian fits the two chord in a major two–five–one.'),
+    scaleLesson('mixolydian', 'Mixolydian over a dominant seventh', 'mixolydian', 'G', 'Play a major scale with a lowered seventh. Listen for the third and flat seventh. They are also the guide tones of the dominant chord.'),
     lesson('targets', 'Land a phrase on a guide tone', 'notes', 'Picture the chord as a stack of thirds. Aim for its third or seventh as requested. Sing a short phrase that you can imagine landing on that tone before you play it.')
   ] },
   { title: 'Voice an advanced jazz cadence', skills: [
@@ -73,10 +73,12 @@ const CURRICULUM = [
 ;
 'use strict';
 
-const CURRICULUM_KEYS = ['C', 'F', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb'];
+const CURRICULUM_SKILLS = CURRICULUM.flatMap(phase => phase.skills);
 const MINUTE = 60000;
 const INITIAL_HALF_LIFE = 45 * MINUTE;
 const MAX_HALF_LIFE = 180 * 24 * 60 * MINUTE;
+const FOCUS_WINDOW = 4;
+const ADVANCE_COOLDOWN = 10 * MINUTE;
 
 function emptyTrace() {
   return { recent: [], timings: [], halfLife: INITIAL_HALF_LIFE, lastAnswered: 0, lastAsked: 0 };
@@ -86,7 +88,7 @@ function courseMemory(progress) {
   const old = progress.curriculum ||= {};
   if (old.courseV2) return old.courseV2;
   const course = old.courseV2 = { concepts: {}, items: {} };
-  for (const skill of CURRICULUM.flatMap(phase => phase.skills)) {
+  for (const skill of CURRICULUM_SKILLS) {
     const semis = skill.intervals?.[0];
     const legacyGroup = semis && ({1:'seconds',2:'seconds',3:'thirds',4:'thirds',5:'perfect-intervals',7:'perfect-intervals',8:'sixths',9:'sixths',10:'seventh-intervals',11:'seventh-intervals',6:'tritone-octave',12:'tritone-octave'})[semis];
     const records = Object.values(old[skill.id] || old[legacyGroup] || {}).filter(x => x && Number.isFinite(x.lastPracticed));
@@ -136,68 +138,113 @@ function practiceWeight(trace, now) {
   return reviewNeed(trace, now, trace?.baseline) / (1 + strength / 50);
 }
 
-function curriculumRecommendation(progress, now = Date.now()) {
-  const {concepts} = courseMemory(progress);
-  const started = reviewGroups(progress).flat();
-  const due = started.filter(skill => {
-    const trace = concepts[skill.id];
-    return retention(trace, now) < 0.6 || practiceWeight(trace, now) >= 1;
-  });
-  const skill = due[0] || [...started].sort((a,b) =>
-    practiceWeight(concepts[b.id], now) - practiceWeight(concepts[a.id], now))[0];
-  const trace = concepts[skill.id];
-  const roots = skill.scales ? COURSE_KEYS.filter(key => rootTrace(trace, key.name)?.lastAsked) : [];
-  roots.sort((a,b) => practiceWeight(rootTrace(trace, b.name), now) - practiceWeight(rootTrace(trace, a.name), now));
-  return {skill, key: roots[0]?.name, reason: due.length ? 'Refresh' : 'Practice'};
+function lastPresented(trace) {
+  return trace?.lastAsked || trace?.lastAnswered || 0;
 }
 
-function reviewGroups(progress) {
-  const {concepts} = courseMemory(progress);
-  const groups = CURRICULUM.map(phase => phase.skills.filter(skill => concepts[skill.id]?.lastAsked))
-    .filter(group => group.length);
-  return groups.length ? groups : [[CURRICULUM[0].skills[0]]];
-}
-
-function reviewSkill(progress, now = Date.now()) {
-  const {concepts} = courseMemory(progress);
-  const pool = reviewGroups(progress).flat();
-  let point = Math.random() * pool.reduce((sum, skill) => sum + practiceWeight(concepts[skill.id], now), 0);
-  for (const skill of pool) {
-    point -= practiceWeight(concepts[skill.id], now);
-    if (point <= 0) return skill;
-  }
-  return pool.at(-1);
+function setLearningFocus(progress, skill, key) {
+  return courseMemory(progress).pacing = { skillId: skill.id, key, outcomes: [] };
 }
 
 function learningFocus(progress) {
   const course = courseMemory(progress);
-  if (course.focus) return course.focus;
-  const started = reviewGroups(progress).flat();
-  const latest = [...started].sort((a,b) =>
-    (course.concepts[b.id]?.lastAsked || 0) - (course.concepts[a.id]?.lastAsked || 0))[0];
-  const trace = course.concepts[latest.id];
-  course.focus = {
-    skillId: latest.id,
-    key: latest.scales ? COURSE_KEYS.filter(key => rootTrace(trace, key.name)?.lastAsked)
-      .sort((a,b) => rootTrace(trace, b.name).lastAsked - rootTrace(trace, a.name).lastAsked)[0]?.name || 'C' : null,
-    clean: Math.min(10, trace?.recent.filter(Boolean).length || 0)
-  };
-  return course.focus;
+  if (course.pacing) return course.pacing;
+  const saved = course.focus;
+  let skill = CURRICULUM_SKILLS.find(entry => entry.id === saved?.skillId);
+  if (!skill) {
+    skill = CURRICULUM_SKILLS.reduce((latest, entry) =>
+      lastPresented(course.concepts[entry.id]) > lastPresented(course.concepts[latest.id]) ? entry : latest);
+  }
+  let key = null;
+  if (skill.scales) {
+    if (saved?.skillId === skill.id && COURSE_KEYS.some(root => root.name === saved.key)) key = saved.key;
+    else {
+      key = skill.starterKey;
+      let latest = 0;
+      for (const root of COURSE_KEYS) {
+        const seen = lastPresented(rootTrace(course.concepts[skill.id], root.name));
+        if (seen <= latest) continue;
+        latest = seen;
+        key = root.name;
+      }
+    }
+  }
+  return setLearningFocus(progress, skill, key);
 }
 
-function scheduledLesson(progress, round) {
+function recordFocusOutcome(progress, prompt, recalled) {
+  const focus = learningFocus(progress);
+  if (prompt.skill.id !== focus.skillId || (focus.key !== null && focus.key !== prompt.statRoot)) return;
+  focus.outcomes.push(recalled ? prompt.statRoot : null);
+  if (focus.outcomes.length > FOCUS_WINDOW) focus.outcomes.shift();
+}
+
+function onlyRecallPitch(outcomes) {
+  let pc = null;
+  for (const root of outcomes) {
+    if (root === null) continue;
+    const next = pcOf(root);
+    if (pc !== null && pc !== next) return null;
+    pc = next;
+  }
+  return pc;
+}
+
+function focusReady(focus) {
+  const outcomes = focus.outcomes;
+  if (outcomes.at(-1) == null) return false;
+  let clean = 0;
+  for (const root of outcomes) if (root !== null) clean += 1;
+  return clean >= 3 && (focus.key !== null || onlyRecallPitch(outcomes) === null);
+}
+
+function selectReview(course, focus, now) {
+  const weighted = [];
+  let oldest = Infinity;
+  let overdue;
+  let totalWeight = 0;
+  const consider = (skill, key, trace) => {
+    const presented = lastPresented(trace);
+    if (!presented || (skill.id === focus?.skillId && key === focus.key)) return;
+    if (trace.lastAnswered && now - trace.lastAnswered >= trace.halfLife) {
+      if (presented < oldest) {
+        oldest = presented;
+        overdue = { skill, key, role: 'review' };
+      }
+    } else if (!overdue) {
+      const weight = practiceWeight(trace, now);
+      weighted.push({ skill, key, weight });
+      totalWeight += weight;
+    }
+  };
+  for (const skill of CURRICULUM_SKILLS) {
+    const trace = course.concepts[skill.id];
+    if (skill.scales) {
+      for (const {name} of COURSE_KEYS) consider(skill, name, rootTrace(trace, name));
+    } else consider(skill, null, trace);
+  }
+  if (overdue) return overdue;
+  let point = weighted.length ? Math.random() * totalWeight : 0;
+  for (const {skill, key, weight} of weighted) {
+    point -= weight;
+    if (point <= 0) return { skill, key, role: 'review' };
+  }
+  const last = weighted.at(-1);
+  return last ? { skill: last.skill, key: last.key, role: 'review' } : null;
+}
+
+function scheduledLesson(progress, round, now = Date.now()) {
   const course = courseMemory(progress);
   const focus = learningFocus(progress);
-  const skill = CURRICULUM.flatMap(group => group.skills).find(skill => skill.id === focus.skillId);
-  const started = reviewGroups(progress).flat();
-  const trace = course.concepts[skill.id];
-  const roots = skill.scales ? COURSE_KEYS.filter(key => rootTrace(trace, key.name)?.lastAsked) : [];
-  const entries = started.length + Math.max(0, roots.length - 1);
-  const focusTurn = focus.clean < 10 && entries === 1 ||
-    entries === 2 && round % 2 === 1 ||
-    entries !== 2 && round % 3 === 1;
-  if (focusTurn) return {skill, key: focus.key};
-  return {skill: reviewSkill(progress)};
+  const skill = CURRICULUM_SKILLS.find(entry => entry.id === focus.skillId);
+  const ready = focusReady(focus);
+  const reviewOnly = ready && !nextCurriculumEntry(course, focus);
+  const slot = (round - 1) % 3;
+  if (reviewOnly || slot === 2 || (slot === 1 && ready)) {
+    const review = selectReview(course, reviewOnly ? null : focus, now);
+    if (review) return review;
+  }
+  return { skill, key: focus.key, role: 'focus' };
 }
 
 const PROFICIENCY_WINDOW = 20;
@@ -228,46 +275,27 @@ function proficient(skill, trace) {
     COURSE_KEYS.every(key => rootProficient(trace, key.name)));
 }
 
-function nextScaleRoot(trace) {
-  return COURSE_KEYS.find(key => !rootTrace(trace, key.name)?.lastAsked &&
-    !rootTrace(trace, key.name)?.lastAnswered)?.name;
-}
-
-function curriculumSteps() {
-  return CURRICULUM.flatMap(group => {
-    if (group.skills.some(skill => skill.id === 'major')) {
-      const major = group.skills.find(skill => skill.id === 'major');
-      const minor = group.skills.find(skill => skill.id === 'natural-minor');
-      const common = COURSE_KEYS.flatMap(key => [
-        {skill: major, key: key.name},
-        {skill: minor, key: spellDegree(key.name, 6, 9)}
-      ]);
-      const valid = common.filter(step => COURSE_KEYS.some(key => key.name === step.key));
-      const remaining = COURSE_KEYS.filter(key => !valid.some(step => step.skill === minor && step.key === key.name))
-        .map(key => ({skill: minor, key: key.name}));
-      return [...valid, ...remaining, ...group.skills.filter(skill => !['major', 'natural-minor'].includes(skill.id))
-        .flatMap(skill => COURSE_KEYS.map(key => ({skill, key: key.name})))];
+function nextCurriculumEntry(course, focus) {
+  const index = CURRICULUM_SKILLS.findIndex(skill => skill.id === focus.skillId);
+  for (let offset = 1; offset < CURRICULUM_SKILLS.length; offset += 1) {
+    const skill = CURRICULUM_SKILLS[(index + offset) % CURRICULUM_SKILLS.length];
+    if (!lastPresented(course.concepts[skill.id])) return { skill, key: skill.starterKey ?? null };
+  }
+  for (const skill of CURRICULUM_SKILLS) {
+    if (!skill.scales) continue;
+    const trace = course.concepts[skill.id];
+    for (const {name: key} of COURSE_KEYS) {
+      if (skill.id === focus.skillId && key === focus.key) continue;
+      if (!lastPresented(rootTrace(trace, key))) return { skill, key };
     }
-    return group.skills.flatMap(skill => skill.scales
-      ? COURSE_KEYS.map(key => ({skill, key: key.name})) : [{skill}]);
-  });
-}
-
-function advancement(progress, now) {
-  const course = courseMemory(progress);
-  if (now < (course.offerAfter || 0)) return null;
-  const focus = learningFocus(progress);
-  for (const step of curriculumSteps()) {
-    const trace = course.concepts[step.skill.id];
-    const memory = step.key ? rootTrace(trace, step.key) : trace;
-    if (!memory?.lastAsked && !memory?.lastAnswered) return step;
-    if (step.key) {
-      if (focus.skillId === step.skill.id && focus.key === step.key && focus.clean < 10) return null;
-      const recent = memory.recent.slice(-10);
-      if (recent.length < 10 || recent.filter(Boolean).length < 8) return null;
-    } else if (!proficient(step.skill, trace)) return null;
   }
   return null;
+}
+
+function advancement(progress, now = Date.now()) {
+  const course = courseMemory(progress);
+  const focus = learningFocus(progress);
+  return now >= (course.offerAfter || 0) && focusReady(focus) ? nextCurriculumEntry(course, focus) : null;
 }
 
 function itemPriority(progress, itemId, skill, now = Date.now()) {
@@ -328,21 +356,26 @@ function recordLesson(progress, prompt, clean, responseMs, now = Date.now()) {
   root.points = Math.max(0, Math.min(100, proficiencyPoints(root) + (clean ? 2 : -6)));
   updateTrace(root, clean, ms, now, concept.baseline);
   if (clean) concept.examples = [...new Set([...(concept.examples || []), prompt.itemId])].slice(-10);
-  const focus = courseMemory(progress).focus;
-  if (focus?.skillId === prompt.skill.id && (!focus.key || focus.key === prompt.statRoot)) {
-    focus.clean = clean ? focus.clean + 1 : Math.max(0, focus.clean - 2);
-  }
   if (proficient(prompt.skill, concept)) concept.learned = true;
 }
 
 function renderCurriculum() {
   renderModes();
-  const now = Date.now();
-  const {concepts} = courseMemory(state.progress);
-  const next = curriculumRecommendation(state.progress, now);
-  $('#free-suggestion').textContent = next.reason + ' · ' + (next.key ? curriculumRootLabel(next.skill, next.key) : next.skill.label);
-  const phase = CURRICULUM.find(p => p.skills.includes(next.skill));
-  $('#curriculum-next').textContent = `${phase.title} · ${next.reason}: ${next.skill.label}`;
+  const progress = state.progress;
+  const course = courseMemory(progress);
+  const focus = learningFocus(progress);
+  const skill = CURRICULUM_SKILLS.find(entry => entry.id === focus.skillId);
+  const ready = focusReady(focus);
+  const reviewOnly = ready && !nextCurriculumEntry(course, focus);
+  const focusLabel = focus.key ? curriculumRootLabel(skill, focus.key) : skill.label;
+  const suggestion = reviewOnly ? 'Review · Introduced lessons' : `Focus · ${focusLabel}`;
+  const session = state.session;
+  const active = session?.finished ? null : session?.prompt;
+  const panel = active?.practiceRole === 'review'
+    ? `Review · ${active.skill.scales ? curriculumRootLabel(active.skill, active.statRoot) : active.skill.label}`
+    : suggestion + (ready && !reviewOnly ? ' · Ready to try more' : '');
+  $('#free-suggestion').textContent = suggestion;
+  $('#curriculum-next').textContent = panel;
   const list = $('#curriculum-phases');
   list.replaceChildren();
   for (const group of CURRICULUM) {
@@ -350,11 +383,11 @@ function renderCurriculum() {
     const heading = document.createElement('strong');
     heading.textContent = group.title;
     const skills = document.createElement('ul');
-    for (const skill of group.skills) {
+    for (const entry of group.skills) {
       const item = document.createElement('li');
-      const trace = concepts[skill.id];
-      const status = trace?.learned ? retention(trace, now) < 0.6 ? 'Ready for review' : 'In review rotation' : skill === next.skill ? 'Current lesson' : 'Upcoming';
-      item.textContent = `${skill.label} · ${status}`;
+      const status = !reviewOnly && entry === skill ? (ready ? 'Ready to try more' : 'Current focus')
+        : lastPresented(course.concepts[entry.id]) ? 'In review rotation' : 'Upcoming';
+      item.textContent = `${entry.label} · ${status}`;
       skills.append(item);
     }
     row.append(heading, skills);
@@ -864,13 +897,13 @@ function* voiceCatalog() {
   }
 }
 
-function planChallenge(previousRoot, round) {
+function planChallenge(previousRoot, round, scheduled = null) {
   const guided = state.session.guided;
   const branchEntry = guided?.branch?.[round - 1];
   const focus = guided?.skill;
   if (!focus) return generateChallenge(previousRoot);
-  const scheduled = guided.scheduled ? scheduledLesson(state.progress, round) : null;
   const skill = branchEntry?.skill || scheduled?.skill || focus;
+  const pace = scheduled?.role === 'focus' ? learningFocus(state.progress) : null;
   const items = new Map();
   const trace = courseMemory(state.progress).concepts[skill.id];
   const simpleRoots = skill.mode === 'notes' ? ['C', 'D', 'E', 'F', 'G', 'A', 'B'] : ['C', 'F', 'G', 'A'];
@@ -881,9 +914,11 @@ function planChallenge(previousRoot, round) {
   });
   const keyPool = fixedKey ? COURSE_KEYS.filter(key => key.name === fixedKey)
     : skill.scales ? (introduced.length ? introduced : COURSE_KEYS.slice(0, 1))
-    : trace?.learned || (trace?.recent.filter(Boolean).length || 0) >= 4
+    : (!pace || focusReady(pace)) && (trace?.learned || (trace?.recent.filter(Boolean).length || 0) >= 4)
       ? COURSE_KEYS : COURSE_KEYS.filter(key => simpleRoots.includes(key.name));
-  for (const key of keyPool) {
+  const contrastPc = pace && !skill.scales ? onlyRecallPitch(pace.outcomes.slice(1 - FOCUS_WINDOW)) : null;
+  const contrasting = contrastPc === null ? keyPool : keyPool.filter(key => key.pc !== contrastPc);
+  for (const key of contrasting.length ? contrasting : keyPool) {
     const prompt = generateChallenge(previousRoot, {skill, key: key.name});
     prompt.skill = skill;
     prompt.statRoot = key.name;
@@ -899,7 +934,9 @@ function planChallenge(previousRoot, round) {
     prompt, priority: (1 / (1 + knowledgeStrength(rootTrace(trace, prompt.statRoot)) * retention(rootTrace(trace, prompt.statRoot), Date.now()) / 50)) * (prompt.statRoot && !rootProficient(trace, prompt.statRoot) ? 2 : 1) * itemPriority(state.progress, prompt.itemId, skill) * (0.85 + Math.random() * 0.3)
   }));
   ranked.sort((a, b) => b.priority - a.priority);
-  return ranked[0].prompt;
+  const prompt = ranked[0].prompt;
+  if (scheduled) prompt.practiceRole = scheduled.role;
+  return prompt;
 }
 
 function generateChallenge(previousRoot = null, guided = null) {
@@ -1061,7 +1098,7 @@ function selectMode(modeId) {
   state.session = null;
   state.roundHeld.clear();
   state.hint = false;
-  renderModes();
+  renderCurriculum();
   renderReady();
   renderCounters();
   renderKeyboardState();
@@ -1083,12 +1120,12 @@ function curriculumRootLabel(skill, key) {
 function renderModes() {
   const tree = $('#mode-nav');
   if (!tree.children.length) {
-    const next = curriculumRecommendation(state.progress).skill;
+    const focusId = learningFocus(state.progress).skillId;
     const meter = '<span class="tree-score"></span><progress max="100" aria-hidden="true"></progress>';
     tree.innerHTML = CURRICULUM.map((group, index) => `
       <div class="tree-branch">
         <button type="button" class="branch-play" data-phase="${index}" aria-label="Play ${group.title}">Play</button>
-        <details ${group.skills.includes(next) ? 'open' : ''}>
+        <details ${group.skills.some(skill => skill.id === focusId) ? 'open' : ''}>
           <summary><span>${group.title}</span>${meter}</summary>
           <ul>${group.skills.map(skill => `
             <li class="tree-branch">
@@ -1175,7 +1212,7 @@ function startRun(guided = null) {
   saveSettingSnapshot();
   $('#key-select').disabled = $('#difficulty-select').disabled = Boolean(guided);
   state.session = {
-    mode: state.mode, guided, arcade: (!guided || guided.freeLesson) && state.runType === 'arcade', total: guided?.branch?.length ?? ROUND_COUNT, intervalCounts: {}, cleanRounds: 0, responseSamples: [], round: 0, score: 0,
+    mode: state.mode, guided, arcade: (!guided || guided.freeLesson) && state.runType === 'arcade', total: guided?.branch?.length ?? ROUND_COUNT, intervalCounts: {}, responseSamples: [], round: 0, score: 0,
     completed: 0, errors: 0, combo: 0, bestCombo: 0, hearts: 3,
     earnedXP: 0, prompt: null, stageIndex: 0, scaleIndex: 0, scaleAnchor: null, intervalAnchor: null, intervalPending: null, intervalTimer: null,
     roundErrors: 0, roundHint: false, busy: false, startedAt: performance.now(),
@@ -1185,7 +1222,7 @@ function startRun(guided = null) {
   $('#board-summary').classList.add('hidden');
   $('#board-active').classList.remove('hidden');
   nextRound();
-  renderModes();
+  if (!guided) renderModes();
 }
 function nextRound() {
   const s = state.session;
@@ -1195,7 +1232,8 @@ function nextRound() {
   state.roundHeld.clear();
   if (s.round >= s.total || (s.arcade && s.hearts <= 0)) { finishRun(); return; }
   s.round += 1;
-  s.prompt = s.nextPrompt ?? planChallenge(state.lastPromptRoot, s.round);
+  const scheduled = s.guided?.scheduled ? scheduledLesson(state.progress, s.round) : null;
+  s.prompt = s.nextPrompt ?? planChallenge(state.lastPromptRoot, s.round, scheduled);
   s.mode = s.prompt.mode;
   if (s.prompt.skill) {
     (s.testedSkills ||= new Set()).add(s.prompt.skill.id);
@@ -1204,7 +1242,7 @@ function nextRound() {
     s.firstExposure = !exposure?.lastAsked && !exposure?.lastAnswered && !exposure?.explainedAt;
     markPresented(state.progress, s.prompt, Date.now());
     if (state.practice && !state.practiceRotation.has(s.prompt.skill.id)) {
-      state.practiceRotation = new Set(reviewGroups(state.progress).flat().map(skill => skill.id));
+      state.practiceRotation.add(s.prompt.skill.id);
       highlightPracticeBranches();
     }
     persist();
@@ -1216,7 +1254,7 @@ function nextRound() {
     const interval = s.prompt.semitones;
     s.intervalCounts[interval] = (s.intervalCounts[interval] || 0) + 1;
   }
-  s.nextPrompt = s.round < s.total ? planChallenge(state.lastPromptRoot, s.round + 1) : undefined;
+  s.nextPrompt = !scheduled && s.round < s.total ? planChallenge(state.lastPromptRoot, s.round + 1) : undefined;
   s.stageIndex = 0;
   s.scaleIndex = 0;
   s.scaleAnchor = null;
@@ -1225,6 +1263,7 @@ function nextRound() {
   s.roundErrors = 0;
   s.roundPenalized = false;
   s.roundHint = false;
+  s.roundWorked = false;
   s.roundRecorded = false;
   s.lastBadInversion = '';
   s.busy = false;
@@ -1235,6 +1274,7 @@ function nextRound() {
   };
   renderChallenge();
   setupLessonHint(s);
+  if (s.guided) renderCurriculum();
   if (spokenPrompts) speakChallenge();
   prepareNextSpeech(s);
   if (s.arcade) startTimer(s.prompt.kind === 'scale' || s.prompt.stages?.length > 1 ? 52 : s.prompt.kind === 'single' ? 20 : 35);
@@ -1262,7 +1302,8 @@ function renderChallenge() {
   const stage = p.kind === 'stack' ? p.stages[s.stageIndex] : null;
   if (p.skill) {
     $('#crumb-mode').textContent = (s.guided.branchTitle || s.guided.skill.label).toUpperCase();
-    $('#mode-description').textContent = s.guided.branch || p.skill.id === s.guided.skill.id ? p.skill.label : 'Review · ' + p.skill.label;
+    const role = p.practiceRole === 'focus' ? 'Focus · ' : p.practiceRole === 'review' ? 'Review · ' : '';
+    $('#mode-description').textContent = role + (role && p.skill.scales ? p.title : p.skill.label);
   }
   $('#challenge-tag').innerHTML = `${mode.title.toUpperCase()} <span class="tag-divider">·</span> ${p.skill ? p.skill.label.toUpperCase() : s.arcade ? 'ARCADE' : 'PRACTICE'}`;
   $('#round-label').textContent = `ROUND ${String(s.round).padStart(2, '0')} / ${String(s.total).padStart(2, '0')}`;
@@ -1666,7 +1707,7 @@ function recordRound(success) {
   if (responseMs !== null) s.responseSamples.push(responseMs);
   if (s.guided) {
     const clean = success && s.roundErrors === 0 && !s.roundHint;
-    s.cleanRounds += Number(clean);
+    if (p.practiceRole === 'focus') recordFocusOutcome(state.progress, p, clean && !s.roundWorked);
     if (clean) recordLesson(state.progress, p, true, responseMs);
     renderCurriculum();
   }
@@ -1725,8 +1766,7 @@ function skipRound(reason = 'Skipped') {
   renderCounters();
   state.transition = window.setTimeout(() => {
     if (state.session !== s) return;
-    if (s.arcade && s.hearts <= 0) finishRun();
-    else nextRound();
+    if (s.round >= s.total || !offerNext(s)) nextRound();
   }, 1300);
 }
 function finishRun() {
@@ -1905,14 +1945,15 @@ function continueAfterRun() {
   const session = state.session;
   if (!session?.continuation) return;
   session.continuation = null;
-  if (state.practice) {
-    if (!offerNext(session)) startCurriculum(true);
+  const {guided} = session;
+  if (guided?.scheduled) {
+    if (!offerNext(session)) startCurriculum(state.practice);
+  } else if (guided?.branch) {
+    startBranch([...new Set(guided.branch.map(entry => entry.skill))], guided.branchTitle);
+  } else if (guided?.freeLesson) {
+    startFreeLesson(guided.skill, guided.key);
   } else {
-    const {guided} = session;
-    if (guided?.branch) startBranch([...new Set(guided.branch.map(entry => entry.skill))], guided.branchTitle);
-    else if (guided?.freeLesson) startFreeLesson(guided.skill, guided.key);
-    else if (guided) startCurriculum(false);
-    else startRun();
+    startRun();
   }
 }
 
@@ -2090,7 +2131,7 @@ function showLessonHint(session, heading) {
 
 function scheduleLessonHint(session) {
   window.clearTimeout(lessonHintTimer);
-  if (!$('#lesson-hint').hidden) return;
+  if (session.guided?.scheduled || !$('#lesson-hint').hidden) return;
   const prompt = session.prompt;
   lessonHintTimer = window.setTimeout(() => {
     if (state.session === session && session.prompt === prompt && !session.busy && !session.finished) {
@@ -2112,6 +2153,7 @@ function setupLessonHint(session) {
   trace.explainedAt = now;
   persist();
   session.showingIntro = true;
+  session.roundWorked = true;
   $('#concept-kind').textContent = refresher ? 'Concept refresher' : 'New concept';
   $('#concept-name').textContent = skill.scales ? session.prompt.title : skill.label;
   renderConceptCopy($('#concept-copy'), session.prompt);
@@ -2402,7 +2444,12 @@ function setRunType(type) {
 }
 function setContinuousPractice(enabled) {
   state.practice = enabled;
-  state.practiceRotation = enabled ? new Set(reviewGroups(state.progress).flat().map(skill => skill.id)) : null;
+  state.practiceRotation = null;
+  if (enabled) {
+    const {concepts} = courseMemory(state.progress);
+    state.practiceRotation = new Set(CURRICULUM_SKILLS.filter(skill =>
+      lastPresented(concepts[skill.id])).map(skill => skill.id));
+  }
   highlightPracticeBranches();
   const button = $('#just-practice');
   button.textContent = enabled ? 'Stop practice' : 'Just Practice';
@@ -2411,23 +2458,20 @@ function setContinuousPractice(enabled) {
 
 function startSuggestedDrill() {
   setRunType('practice');
-  learningFocus(state.progress);
-  const {skill} = scheduledLesson(state.progress, 1);
-  setContinuousPractice(false);
-  selectMode(skill.mode);
-  startRun({skill, scheduled: true});
+  startCurriculum(false);
 }
 
 function startCurriculum(continuous = true) {
   setContinuousPractice(continuous);
-  const {skill} = scheduledLesson(state.progress, 1);
+  const {skillId} = learningFocus(state.progress);
+  const skill = CURRICULUM_SKILLS.find(entry => entry.id === skillId);
   selectMode(skill.mode);
   startRun({skill, scheduled: true});
   $('#challenge-title').scrollIntoView({block:'nearest'});
 }
 
 function offerNext(session) {
-  const next = session.guided && !session.guided.branch && advancement(state.progress, Date.now());
+  const next = session.guided?.scheduled && advancement(state.progress);
   if (!next) return false;
   session.offer = next;
   $('#advance-next').textContent = 'Take it one step further — ' +
@@ -2443,14 +2487,13 @@ function resolveOffer(advance) {
   s.offer = null;
   $('#advance-dialog').close();
   if (advance) {
-    courseMemory(state.progress).focus = {skillId: skill.id, key: key || null, clean: 0};
+    setLearningFocus(state.progress, skill, key);
     persist();
-    selectMode(skill.mode);
-    startRun({skill, scheduled: true});
+    startCurriculum(state.practice);
   } else {
-    courseMemory(state.progress).offerAfter = Date.now() + 600000;
+    courseMemory(state.progress).offerAfter = Date.now() + ADVANCE_COOLDOWN;
     persist();
-    if (s.finished) startCurriculum(true);
+    if (s.finished) startCurriculum(state.practice);
     else nextRound();
   }
 }
@@ -2458,7 +2501,6 @@ function resolveOffer(advance) {
 function initialize() {
   renderSpeechSetting();
   renderCurriculum();
-  renderModes();
   renderKeyboard();
   bindEvents();
   renderReady();

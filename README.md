@@ -20,6 +20,8 @@ This combines lessons.js, curriculum.js, neural-voice.js and app.js into a conte
 
 ## Practice
 
-Just Practice mixes recently introduced material with adaptive review. The curriculum sidebar supports individual root drills and complete branches. Scores, response timing, progress history and voice clips are saved in the browser. Export progress from the sidebar for a JSON backup.
+**Just Practice** and **Start suggested drill** give you time with a focus lesson and mix in earlier material when it's due. After a few unaided answers in starter keys you can try the next lesson or keep practicing. Use **Show hint** whenever you need help; assisted answers don't count toward advancing. All-key fluency stays a separate practice goal.
+
+Use the **Free Play** sidebar to choose a root, lesson, or full branch without moving your guided focus. Scores, response timing, progress history, and voice clips stay in the browser. Use **Export progress** for a JSON backup.
 
 Voice generation runs locally in a Web Worker after model download. Instrument audio comes from your piano.

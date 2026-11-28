@@ -5,8 +5,8 @@ const intervalLesson = (id, label, distance, hint) =>
   lesson(id, label, 'intervals', hint, { intervals: [distance] });
 const chordLesson = (id, label, chordType, hint) =>
   lesson(id, label, 'chords', hint, { chordType });
-const scaleLesson = (id, label, scale, hint) =>
-  lesson(id, label, 'scales', hint, { scales: [scale], level: 'jazz' });
+const scaleLesson = (id, label, scale, starterKey, hint) =>
+  lesson(id, label, 'scales', hint, { scales: [scale], starterKey, level: 'jazz' });
 
 const CURRICULUM = [
   { title: 'Find your way around the keyboard', skills: [
@@ -25,10 +25,10 @@ const CURRICULUM = [
     chordLesson('minor-triad', 'Minor triad', 'minor', 'Keep the root and fifth of a major triad. Lower its middle note by one half step. The gaps are now three half steps, then four.')
   ] },
   { title: 'Scales', skills: [
-    scaleLesson('major', 'Major scale', 'major', 'Start on the root. Move whole, whole, half, whole, whole, whole, half. A whole step skips one key. A half step lands on the adjacent key.'),
-    scaleLesson('natural-minor', 'Natural minor scale', 'minor', 'From the root move whole, half, whole, whole, half, whole, whole. Compare the third, sixth, and seventh with the major scale from the same root. Each is a half step lower.'),
-    scaleLesson('harmonic-minor', 'Harmonic minor scale', 'harmonic', 'Start with natural minor and raise only the seventh degree by a half step. Listen for the three half steps from the sixth to the seventh, then the small step home.'),
-    scaleLesson('melodic-minor', 'Ascending melodic minor', 'melodic', 'Raise the sixth and seventh degrees of natural minor by a half step. Another route is to play a major scale with a lowered third. Jazz melodic minor keeps this shape in either direction.')
+    scaleLesson('major', 'Major scale', 'major', 'C', 'Start on the root. Move whole, whole, half, whole, whole, whole, half. A whole step skips one key. A half step lands on the adjacent key.'),
+    scaleLesson('natural-minor', 'Natural minor scale', 'minor', 'A', 'From the root move whole, half, whole, whole, half, whole, whole. Compare the third, sixth, and seventh with the major scale from the same root. Each is a half step lower.'),
+    scaleLesson('harmonic-minor', 'Harmonic minor scale', 'harmonic', 'A', 'Start with natural minor and raise only the seventh degree by a half step. Listen for the three half steps from the sixth to the seventh, then the small step home.'),
+    scaleLesson('melodic-minor', 'Ascending melodic minor', 'melodic', 'A', 'Raise the sixth and seventh degrees of natural minor by a half step. Another route is to play a major scale with a lowered third. Jazz melodic minor keeps this shape in either direction.')
   ] },
   { title: 'Suspended chords and inversions', skills: [
     chordLesson('diminished', 'Diminished triad', 'diminished', 'Stack two minor thirds. From a minor triad, keep the root and third in place and lower the fifth by a half step.'),
@@ -54,8 +54,8 @@ const CURRICULUM = [
     lesson('guides', 'Lead two voices through a cadence', 'guides', 'Play only each chord’s third and seventh. At each change, listen for a common tone. Keep it still and move the other voice the shortest distance.')
   ] },
   { title: 'Phrase over changing harmony', skills: [
-    scaleLesson('dorian', 'Dorian over a minor seventh', 'dorian', 'Take natural minor and raise its sixth degree a half step. Listen for that bright sixth against the minor third. Dorian fits the two chord in a major two–five–one.'),
-    scaleLesson('mixolydian', 'Mixolydian over a dominant seventh', 'mixolydian', 'Play a major scale with a lowered seventh. Listen for the third and flat seventh. They are also the guide tones of the dominant chord.'),
+    scaleLesson('dorian', 'Dorian over a minor seventh', 'dorian', 'D', 'Take natural minor and raise its sixth degree a half step. Listen for that bright sixth against the minor third. Dorian fits the two chord in a major two–five–one.'),
+    scaleLesson('mixolydian', 'Mixolydian over a dominant seventh', 'mixolydian', 'G', 'Play a major scale with a lowered seventh. Listen for the third and flat seventh. They are also the guide tones of the dominant chord.'),
     lesson('targets', 'Land a phrase on a guide tone', 'notes', 'Picture the chord as a stack of thirds. Aim for its third or seventh as requested. Sing a short phrase that you can imagine landing on that tone before you play it.')
   ] },
   { title: 'Voice an advanced jazz cadence', skills: [

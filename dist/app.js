@@ -379,13 +379,13 @@ function* voiceCatalog() {
   }
 }
 
-function planChallenge(previousRoot, round) {
+function planChallenge(previousRoot, round, scheduled = null) {
   const guided = state.session.guided;
   const branchEntry = guided?.branch?.[round - 1];
   const focus = guided?.skill;
   if (!focus) return generateChallenge(previousRoot);
-  const scheduled = guided.scheduled ? scheduledLesson(state.progress, round) : null;
   const skill = branchEntry?.skill || scheduled?.skill || focus;
+  const pace = scheduled?.role === 'focus' ? learningFocus(state.progress) : null;
   const items = new Map();
   const trace = courseMemory(state.progress).concepts[skill.id];
   const simpleRoots = skill.mode === 'notes' ? ['C', 'D', 'E', 'F', 'G', 'A', 'B'] : ['C', 'F', 'G', 'A'];
@@ -396,9 +396,11 @@ function planChallenge(previousRoot, round) {
   });
   const keyPool = fixedKey ? COURSE_KEYS.filter(key => key.name === fixedKey)
     : skill.scales ? (introduced.length ? introduced : COURSE_KEYS.slice(0, 1))
-    : trace?.learned || (trace?.recent.filter(Boolean).length || 0) >= 4
+    : (!pace || focusReady(pace)) && (trace?.learned || (trace?.recent.filter(Boolean).length || 0) >= 4)
       ? COURSE_KEYS : COURSE_KEYS.filter(key => simpleRoots.includes(key.name));
-  for (const key of keyPool) {
+  const contrastPc = pace && !skill.scales ? onlyRecallPitch(pace.outcomes.slice(1 - FOCUS_WINDOW)) : null;
+  const contrasting = contrastPc === null ? keyPool : keyPool.filter(key => key.pc !== contrastPc);
+  for (const key of contrasting.length ? contrasting : keyPool) {
     const prompt = generateChallenge(previousRoot, {skill, key: key.name});
     prompt.skill = skill;
     prompt.statRoot = key.name;
@@ -414,7 +416,9 @@ function planChallenge(previousRoot, round) {
     prompt, priority: (1 / (1 + knowledgeStrength(rootTrace(trace, prompt.statRoot)) * retention(rootTrace(trace, prompt.statRoot), Date.now()) / 50)) * (prompt.statRoot && !rootProficient(trace, prompt.statRoot) ? 2 : 1) * itemPriority(state.progress, prompt.itemId, skill) * (0.85 + Math.random() * 0.3)
   }));
   ranked.sort((a, b) => b.priority - a.priority);
-  return ranked[0].prompt;
+  const prompt = ranked[0].prompt;
+  if (scheduled) prompt.practiceRole = scheduled.role;
+  return prompt;
 }
 
 function generateChallenge(previousRoot = null, guided = null) {
@@ -576,7 +580,7 @@ function selectMode(modeId) {
   state.session = null;
   state.roundHeld.clear();
   state.hint = false;
-  renderModes();
+  renderCurriculum();
   renderReady();
   renderCounters();
   renderKeyboardState();
@@ -598,12 +602,12 @@ function curriculumRootLabel(skill, key) {
 function renderModes() {
   const tree = $('#mode-nav');
   if (!tree.children.length) {
-    const next = curriculumRecommendation(state.progress).skill;
+    const focusId = learningFocus(state.progress).skillId;
     const meter = '<span class="tree-score"></span><progress max="100" aria-hidden="true"></progress>';
     tree.innerHTML = CURRICULUM.map((group, index) => `
       <div class="tree-branch">
         <button type="button" class="branch-play" data-phase="${index}" aria-label="Play ${group.title}">Play</button>
-        <details ${group.skills.includes(next) ? 'open' : ''}>
+        <details ${group.skills.some(skill => skill.id === focusId) ? 'open' : ''}>
           <summary><span>${group.title}</span>${meter}</summary>
           <ul>${group.skills.map(skill => `
             <li class="tree-branch">
@@ -690,7 +694,7 @@ function startRun(guided = null) {
   saveSettingSnapshot();
   $('#key-select').disabled = $('#difficulty-select').disabled = Boolean(guided);
   state.session = {
-    mode: state.mode, guided, arcade: (!guided || guided.freeLesson) && state.runType === 'arcade', total: guided?.branch?.length ?? ROUND_COUNT, intervalCounts: {}, cleanRounds: 0, responseSamples: [], round: 0, score: 0,
+    mode: state.mode, guided, arcade: (!guided || guided.freeLesson) && state.runType === 'arcade', total: guided?.branch?.length ?? ROUND_COUNT, intervalCounts: {}, responseSamples: [], round: 0, score: 0,
     completed: 0, errors: 0, combo: 0, bestCombo: 0, hearts: 3,
     earnedXP: 0, prompt: null, stageIndex: 0, scaleIndex: 0, scaleAnchor: null, intervalAnchor: null, intervalPending: null, intervalTimer: null,
     roundErrors: 0, roundHint: false, busy: false, startedAt: performance.now(),
@@ -700,7 +704,7 @@ function startRun(guided = null) {
   $('#board-summary').classList.add('hidden');
   $('#board-active').classList.remove('hidden');
   nextRound();
-  renderModes();
+  if (!guided) renderModes();
 }
 function nextRound() {
   const s = state.session;
@@ -710,7 +714,8 @@ function nextRound() {
   state.roundHeld.clear();
   if (s.round >= s.total || (s.arcade && s.hearts <= 0)) { finishRun(); return; }
   s.round += 1;
-  s.prompt = s.nextPrompt ?? planChallenge(state.lastPromptRoot, s.round);
+  const scheduled = s.guided?.scheduled ? scheduledLesson(state.progress, s.round) : null;
+  s.prompt = s.nextPrompt ?? planChallenge(state.lastPromptRoot, s.round, scheduled);
   s.mode = s.prompt.mode;
   if (s.prompt.skill) {
     (s.testedSkills ||= new Set()).add(s.prompt.skill.id);
@@ -719,7 +724,7 @@ function nextRound() {
     s.firstExposure = !exposure?.lastAsked && !exposure?.lastAnswered && !exposure?.explainedAt;
     markPresented(state.progress, s.prompt, Date.now());
     if (state.practice && !state.practiceRotation.has(s.prompt.skill.id)) {
-      state.practiceRotation = new Set(reviewGroups(state.progress).flat().map(skill => skill.id));
+      state.practiceRotation.add(s.prompt.skill.id);
       highlightPracticeBranches();
     }
     persist();
@@ -731,7 +736,7 @@ function nextRound() {
     const interval = s.prompt.semitones;
     s.intervalCounts[interval] = (s.intervalCounts[interval] || 0) + 1;
   }
-  s.nextPrompt = s.round < s.total ? planChallenge(state.lastPromptRoot, s.round + 1) : undefined;
+  s.nextPrompt = !scheduled && s.round < s.total ? planChallenge(state.lastPromptRoot, s.round + 1) : undefined;
   s.stageIndex = 0;
   s.scaleIndex = 0;
   s.scaleAnchor = null;
@@ -740,6 +745,7 @@ function nextRound() {
   s.roundErrors = 0;
   s.roundPenalized = false;
   s.roundHint = false;
+  s.roundWorked = false;
   s.roundRecorded = false;
   s.lastBadInversion = '';
   s.busy = false;
@@ -750,6 +756,7 @@ function nextRound() {
   };
   renderChallenge();
   setupLessonHint(s);
+  if (s.guided) renderCurriculum();
   if (spokenPrompts) speakChallenge();
   prepareNextSpeech(s);
   if (s.arcade) startTimer(s.prompt.kind === 'scale' || s.prompt.stages?.length > 1 ? 52 : s.prompt.kind === 'single' ? 20 : 35);
@@ -777,7 +784,8 @@ function renderChallenge() {
   const stage = p.kind === 'stack' ? p.stages[s.stageIndex] : null;
   if (p.skill) {
     $('#crumb-mode').textContent = (s.guided.branchTitle || s.guided.skill.label).toUpperCase();
-    $('#mode-description').textContent = s.guided.branch || p.skill.id === s.guided.skill.id ? p.skill.label : 'Review · ' + p.skill.label;
+    const role = p.practiceRole === 'focus' ? 'Focus · ' : p.practiceRole === 'review' ? 'Review · ' : '';
+    $('#mode-description').textContent = role + (role && p.skill.scales ? p.title : p.skill.label);
   }
   $('#challenge-tag').innerHTML = `${mode.title.toUpperCase()} <span class="tag-divider">·</span> ${p.skill ? p.skill.label.toUpperCase() : s.arcade ? 'ARCADE' : 'PRACTICE'}`;
   $('#round-label').textContent = `ROUND ${String(s.round).padStart(2, '0')} / ${String(s.total).padStart(2, '0')}`;
@@ -1181,7 +1189,7 @@ function recordRound(success) {
   if (responseMs !== null) s.responseSamples.push(responseMs);
   if (s.guided) {
     const clean = success && s.roundErrors === 0 && !s.roundHint;
-    s.cleanRounds += Number(clean);
+    if (p.practiceRole === 'focus') recordFocusOutcome(state.progress, p, clean && !s.roundWorked);
     if (clean) recordLesson(state.progress, p, true, responseMs);
     renderCurriculum();
   }
@@ -1240,8 +1248,7 @@ function skipRound(reason = 'Skipped') {
   renderCounters();
   state.transition = window.setTimeout(() => {
     if (state.session !== s) return;
-    if (s.arcade && s.hearts <= 0) finishRun();
-    else nextRound();
+    if (s.round >= s.total || !offerNext(s)) nextRound();
   }, 1300);
 }
 function finishRun() {
@@ -1420,14 +1427,15 @@ function continueAfterRun() {
   const session = state.session;
   if (!session?.continuation) return;
   session.continuation = null;
-  if (state.practice) {
-    if (!offerNext(session)) startCurriculum(true);
+  const {guided} = session;
+  if (guided?.scheduled) {
+    if (!offerNext(session)) startCurriculum(state.practice);
+  } else if (guided?.branch) {
+    startBranch([...new Set(guided.branch.map(entry => entry.skill))], guided.branchTitle);
+  } else if (guided?.freeLesson) {
+    startFreeLesson(guided.skill, guided.key);
   } else {
-    const {guided} = session;
-    if (guided?.branch) startBranch([...new Set(guided.branch.map(entry => entry.skill))], guided.branchTitle);
-    else if (guided?.freeLesson) startFreeLesson(guided.skill, guided.key);
-    else if (guided) startCurriculum(false);
-    else startRun();
+    startRun();
   }
 }
 
@@ -1605,7 +1613,7 @@ function showLessonHint(session, heading) {
 
 function scheduleLessonHint(session) {
   window.clearTimeout(lessonHintTimer);
-  if (!$('#lesson-hint').hidden) return;
+  if (session.guided?.scheduled || !$('#lesson-hint').hidden) return;
   const prompt = session.prompt;
   lessonHintTimer = window.setTimeout(() => {
     if (state.session === session && session.prompt === prompt && !session.busy && !session.finished) {
@@ -1627,6 +1635,7 @@ function setupLessonHint(session) {
   trace.explainedAt = now;
   persist();
   session.showingIntro = true;
+  session.roundWorked = true;
   $('#concept-kind').textContent = refresher ? 'Concept refresher' : 'New concept';
   $('#concept-name').textContent = skill.scales ? session.prompt.title : skill.label;
   renderConceptCopy($('#concept-copy'), session.prompt);
@@ -1917,7 +1926,12 @@ function setRunType(type) {
 }
 function setContinuousPractice(enabled) {
   state.practice = enabled;
-  state.practiceRotation = enabled ? new Set(reviewGroups(state.progress).flat().map(skill => skill.id)) : null;
+  state.practiceRotation = null;
+  if (enabled) {
+    const {concepts} = courseMemory(state.progress);
+    state.practiceRotation = new Set(CURRICULUM_SKILLS.filter(skill =>
+      lastPresented(concepts[skill.id])).map(skill => skill.id));
+  }
   highlightPracticeBranches();
   const button = $('#just-practice');
   button.textContent = enabled ? 'Stop practice' : 'Just Practice';
@@ -1926,23 +1940,20 @@ function setContinuousPractice(enabled) {
 
 function startSuggestedDrill() {
   setRunType('practice');
-  learningFocus(state.progress);
-  const {skill} = scheduledLesson(state.progress, 1);
-  setContinuousPractice(false);
-  selectMode(skill.mode);
-  startRun({skill, scheduled: true});
+  startCurriculum(false);
 }
 
 function startCurriculum(continuous = true) {
   setContinuousPractice(continuous);
-  const {skill} = scheduledLesson(state.progress, 1);
+  const {skillId} = learningFocus(state.progress);
+  const skill = CURRICULUM_SKILLS.find(entry => entry.id === skillId);
   selectMode(skill.mode);
   startRun({skill, scheduled: true});
   $('#challenge-title').scrollIntoView({block:'nearest'});
 }
 
 function offerNext(session) {
-  const next = session.guided && !session.guided.branch && advancement(state.progress, Date.now());
+  const next = session.guided?.scheduled && advancement(state.progress);
   if (!next) return false;
   session.offer = next;
   $('#advance-next').textContent = 'Take it one step further — ' +
@@ -1958,14 +1969,13 @@ function resolveOffer(advance) {
   s.offer = null;
   $('#advance-dialog').close();
   if (advance) {
-    courseMemory(state.progress).focus = {skillId: skill.id, key: key || null, clean: 0};
+    setLearningFocus(state.progress, skill, key);
     persist();
-    selectMode(skill.mode);
-    startRun({skill, scheduled: true});
+    startCurriculum(state.practice);
   } else {
-    courseMemory(state.progress).offerAfter = Date.now() + 600000;
+    courseMemory(state.progress).offerAfter = Date.now() + ADVANCE_COOLDOWN;
     persist();
-    if (s.finished) startCurriculum(true);
+    if (s.finished) startCurriculum(state.practice);
     else nextRound();
   }
 }
@@ -1973,7 +1983,6 @@ function resolveOffer(advance) {
 function initialize() {
   renderSpeechSetting();
   renderCurriculum();
-  renderModes();
   renderKeyboard();
   bindEvents();
   renderReady();
